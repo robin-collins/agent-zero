@@ -19,3 +19,7 @@
 {{ include './agent.system.tool.scheduler.md' }}
 
 {{ include './agent.system.tool.document_query.md' }}
+
+{{ include './agent.system.tool.email_manager.md' }}
+
+{{ include './agent.system.tool.calendar_manager.md' }}
