@@ -1,0 +1,3 @@
+"""
+Screenshot system test suite
+"""
