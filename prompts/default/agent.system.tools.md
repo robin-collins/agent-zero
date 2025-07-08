@@ -23,3 +23,5 @@
 {{ include './agent.system.tool.email_manager.md' }}
 
 {{ include './agent.system.tool.calendar_manager.md' }}
+
+{{ include './agent.system.tool.screenshot.md' }}

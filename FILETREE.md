@@ -165,6 +165,9 @@ This document tracks the current file structure of the Agent Zero project, updat
 ## Root Level Scripts
 - `deploy_screenshot_system.py` - **NEW** Deployment script for screenshot system
 - `validate_screenshot_implementation.py` - **NEW** Validation script for implementation
+- `build-containers.sh` - **NEW** Comprehensive container build script with GitHub Actions compatibility
+- `build-local.sh` - **NEW** Simplified build script for local development
+- `quick-start.sh` - **NEW** One-command build and run script for rapid development
 
 ## Recent Changes
 - **2024-01-XX**: Added comprehensive screenshot system with modular architecture

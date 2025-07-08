@@ -1,0 +1,130 @@
+❯ ./build-containers.sh --local --verbose
++ shift
++ [[ 0 -gt 0 ]]
++ REGISTRY=ghcr.io
++ REPOSITORY=agent-zero
++ BRANCH=main
++ PLATFORMS=linux/x86_64
++ trap 'print_error "Build failed at line $LINENO"; cleanup_buildx; exit 1' ERR
++ main
++ print_status 'Starting Agent Zero container build process...'
++ echo -e '\033[0;34m[INFO]\033[0m Starting Agent Zero container build process...'
+[INFO] Starting Agent Zero container build process...
++ validate_prerequisites
++ print_status 'Validating prerequisites...'
++ echo -e '\033[0;34m[INFO]\033[0m Validating prerequisites...'
+[INFO] Validating prerequisites...
++ command -v docker
++ docker info
++ command -v git
++ [[ ! -f docker/base/Dockerfile ]]
++ [[ ! -f docker/run/Dockerfile ]]
++ [[ true == \f\a\l\s\e ]]
++ print_success 'Prerequisites validated'
++ echo -e '\033[0;32m[SUCCESS]\033[0m Prerequisites validated'
+[SUCCESS] Prerequisites validated
++ get_git_info
+++ git rev-parse --abbrev-ref HEAD
++ CURRENT_BRANCH=robin-collins-imap_email
+++ git rev-parse --short HEAD
++ CURRENT_COMMIT=6c8573e
+++ date +%s
++ CURRENT_DATE=1751993404
++ [[ -z main ]]
++ print_status 'Git info - Branch: main, Commit: 6c8573e'
++ echo -e '\033[0;34m[INFO]\033[0m Git info - Branch: main, Commit: 6c8573e'
+[INFO] Git info - Branch: main, Commit: 6c8573e
++ show_summary
++ print_status 'Build Summary:'
++ echo -e '\033[0;34m[INFO]\033[0m Build Summary:'
+[INFO] Build Summary:
++ echo '  Registry: ghcr.io'
+  Registry: ghcr.io
++ echo '  Repository: agent-zero'
+  Repository: agent-zero
++ echo '  Branch: main'
+  Branch: main
++ echo '  Commit: 6c8573e'
+  Commit: 6c8573e
++ echo '  Platforms: linux/x86_64'
+  Platforms: linux/x86_64
++ echo '  Base image: true'
+  Base image: true
++ echo '  Run image: true'
+  Run image: true
++ echo '  Push images: false'
+  Push images: false
++ echo '  Local build: true'
+  Local build: true
++ echo '  Clean build: false'
+  Clean build: false
++ [[ true == \t\r\u\e ]]
+++ generate_tags base
+++ local image_name=base
+++ local base_tag=ghcr.io/agent-zero-base
+++ TAGS=ghcr.io/agent-zero-base:main
+++ [[ 6c8573e != \u\n\k\n\o\w\n ]]
+++ TAGS=ghcr.io/agent-zero-base:main,ghcr.io/agent-zero-base:main-6c8573e
+++ [[ main == \m\a\i\n ]]
+++ TAGS=ghcr.io/agent-zero-base:main,ghcr.io/agent-zero-base:main-6c8573e,ghcr.io/agent-zero-base:latest
+++ echo ghcr.io/agent-zero-base:main,ghcr.io/agent-zero-base:main-6c8573e,ghcr.io/agent-zero-base:latest
++ echo '  Base image tags: ghcr.io/agent-zero-base:main,ghcr.io/agent-zero-base:main-6c8573e,ghcr.io/agent-zero-base:latest'
+  Base image tags: ghcr.io/agent-zero-base:main,ghcr.io/agent-zero-base:main-6c8573e,ghcr.io/agent-zero-base:latest
++ [[ true == \t\r\u\e ]]
+++ generate_tags run
+++ local image_name=run
+++ local base_tag=ghcr.io/agent-zero-run
+++ TAGS=ghcr.io/agent-zero-run:main
+++ [[ 6c8573e != \u\n\k\n\o\w\n ]]
+++ TAGS=ghcr.io/agent-zero-run:main,ghcr.io/agent-zero-run:main-6c8573e
+++ [[ main == \m\a\i\n ]]
+++ TAGS=ghcr.io/agent-zero-run:main,ghcr.io/agent-zero-run:main-6c8573e,ghcr.io/agent-zero-run:latest
+++ echo ghcr.io/agent-zero-run:main,ghcr.io/agent-zero-run:main-6c8573e,ghcr.io/agent-zero-run:latest
++ echo '  Run image tags: ghcr.io/agent-zero-run:main,ghcr.io/agent-zero-run:main-6c8573e,ghcr.io/agent-zero-run:latest'
+  Run image tags: ghcr.io/agent-zero-run:main,ghcr.io/agent-zero-run:main-6c8573e,ghcr.io/agent-zero-run:latest
++ setup_buildx
++ [[ true == \f\a\l\s\e ]]
++ authenticate_registry
++ [[ false == \t\r\u\e ]]
++ [[ true == \t\r\u\e ]]
++ build_base_image
++ print_status 'Building base image...'
++ echo -e '\033[0;34m[INFO]\033[0m Building base image...'
+[INFO] Building base image...
+++ generate_tags base
+++ local image_name=base
+++ local base_tag=ghcr.io/agent-zero-base
+++ TAGS=ghcr.io/agent-zero-base:main
+++ [[ 6c8573e != \u\n\k\n\o\w\n ]]
+++ TAGS=ghcr.io/agent-zero-base:main,ghcr.io/agent-zero-base:main-6c8573e
+++ [[ main == \m\a\i\n ]]
+++ TAGS=ghcr.io/agent-zero-base:main,ghcr.io/agent-zero-base:main-6c8573e,ghcr.io/agent-zero-base:latest
+++ echo ghcr.io/agent-zero-base:main,ghcr.io/agent-zero-base:main-6c8573e,ghcr.io/agent-zero-base:latest
++ local tags=ghcr.io/agent-zero-base:main,ghcr.io/agent-zero-base:main-6c8573e,ghcr.io/agent-zero-base:latest
++ local build_cmd=docker
++ [[ true == \f\a\l\s\e ]]
++ local 'build_args=--build-arg CACHE_DATE=1751993404'
++ [[ -n '' ]]
++ local cache_args=
++ [[ false == \f\a\l\s\e ]]
++ cache_args='--cache-from type=local,src=/tmp/.buildx-cache-base --cache-to type=local,dest=/tmp/.buildx-cache-base'
++ local 'cmd=docker build'
++ cmd='docker build --context docker/base'
++ cmd='docker build --context docker/base --file docker/base/Dockerfile'
++ cmd='docker build --context docker/base --file docker/base/Dockerfile --tag ghcr.io/agent-zero-base:main,ghcr.io/agent-zero-base:main-6c8573e,ghcr.io/agent-zero-base:latest'
++ cmd='docker build --context docker/base --file docker/base/Dockerfile --tag ghcr.io/agent-zero-base:main,ghcr.io/agent-zero-base:main-6c8573e,ghcr.io/agent-zero-base:latest --build-arg CACHE_DATE=1751993404'
++ [[ true == \f\a\l\s\e ]]
++ [[ false == \t\r\u\e ]]
++ cmd='docker build --context docker/base --file docker/base/Dockerfile --tag ghcr.io/agent-zero-base:main,ghcr.io/agent-zero-base:main-6c8573e,ghcr.io/agent-zero-base:latest --build-arg CACHE_DATE=1751993404 --load'
++ [[ false == \f\a\l\s\e ]]
++ [[ true == \f\a\l\s\e ]]
++ print_status 'Executing: docker build --context docker/base --file docker/base/Dockerfile --tag ghcr.io/agent-zero-base:main,ghcr.io/agent-zero-base:main-6c8573e,ghcr.io/agent-zero-base:latest --build-arg CACHE_DATE=1751993404 --load'
++ echo -e '\033[0;34m[INFO]\033[0m Executing: docker build --context docker/base --file docker/base/Dockerfile --tag ghcr.io/agent-zero-base:main,ghcr.io/agent-zero-base:main-6c8573e,ghcr.io/agent-zero-base:latest --build-arg CACHE_DATE=1751993404 --load'
+[INFO] Executing: docker build --context docker/base --file docker/base/Dockerfile --tag ghcr.io/agent-zero-base:main,ghcr.io/agent-zero-base:main-6c8573e,ghcr.io/agent-zero-base:latest --build-arg CACHE_DATE=1751993404 --load
++ eval 'docker build --context docker/base --file docker/base/Dockerfile --tag ghcr.io/agent-zero-base:main,ghcr.io/agent-zero-base:main-6c8573e,ghcr.io/agent-zero-base:latest --build-arg CACHE_DATE=1751993404 --load'
+++ docker build --context docker/base --file docker/base/Dockerfile --tag ghcr.io/agent-zero-base:main,ghcr.io/agent-zero-base:main-6c8573e,ghcr.io/agent-zero-base:latest --build-arg CACHE_DATE=1751993404 --load
+unknown flag: --context
+
+Usage:  docker buildx build [OPTIONS] PATH | URL | -
+
+Run 'docker buildx build --help' for more information

@@ -77,7 +77,7 @@ class BrowserScreenshotManager:
     
     async def initialize(self) -> bool:
         """
-        Initialize the screenshot manager
+        Initialize the screenshot manager with comprehensive validation
         
         Returns:
             True if initialization successful
@@ -91,10 +91,19 @@ class BrowserScreenshotManager:
                 logger.error(f"Failed to create screenshot directory: {self.base_path}")
                 return False
             
+            # Test directory permissions
+            await self._test_directory_permissions()
+            
             # Check provider availability
             if not await self.provider.is_available():
                 logger.error("Screenshot provider is not available")
                 return False
+            
+            # Test provider functionality
+            await self._test_provider_functionality()
+            
+            # Validate cleanup utilities
+            await self._validate_cleanup_utilities()
             
             # Start cleanup task if auto cleanup is enabled
             if self.auto_cleanup:
@@ -107,6 +116,52 @@ class BrowserScreenshotManager:
         except Exception as e:
             logger.error(f"Failed to initialize screenshot manager: {str(e)}")
             return False
+    
+    async def _test_directory_permissions(self) -> None:
+        """Test if we can write to the screenshot directory."""
+        test_file = self.base_path / "test_permissions.tmp"
+        try:
+            # Test write
+            test_file.write_text("test")
+            
+            # Test read
+            content = test_file.read_text()
+            if content != "test":
+                raise Exception("File content mismatch")
+                
+            # Test delete
+            test_file.unlink()
+            
+        except Exception as e:
+            raise Exception(f"Directory permissions test failed: {str(e)}")
+    
+    async def _test_provider_functionality(self) -> None:
+        """Test basic provider functionality without full screenshot."""
+        try:
+            # Get provider capabilities
+            capabilities = await self.provider.get_capabilities()
+            if not capabilities:
+                raise Exception("Provider returned no capabilities")
+            
+            # Check required capabilities
+            required_caps = ["formats", "full_page", "timeout_control"]
+            missing_caps = [cap for cap in required_caps if cap not in capabilities]
+            if missing_caps:
+                logger.warning(f"Provider missing capabilities: {missing_caps}")
+                
+        except Exception as e:
+            raise Exception(f"Provider functionality test failed: {str(e)}")
+    
+    async def _validate_cleanup_utilities(self) -> None:
+        """Validate cleanup utilities are working."""
+        try:
+            # Test cleanup statistics
+            stats = await get_cleanup_statistics(self.base_path)
+            if not isinstance(stats, dict):
+                raise Exception("Cleanup statistics validation failed")
+                
+        except Exception as e:
+            logger.warning(f"Cleanup utilities validation failed: {str(e)}")
     
     async def capture_screenshot(
         self,
@@ -141,6 +196,16 @@ class BrowserScreenshotManager:
         config_issues = validate_screenshot_config(config)
         if config_issues:
             error_msg = f"Invalid configuration: {', '.join(config_issues)}"
+            logger.error(error_msg)
+            return ScreenshotResult(
+                success=False,
+                error=error_msg,
+                timestamp=time.time()
+            )
+        
+        # Check provider is still available
+        if not await self.provider.is_available():
+            error_msg = "Screenshot provider is no longer available"
             logger.error(error_msg)
             return ScreenshotResult(
                 success=False,

@@ -6,7 +6,8 @@
       "Bash(ls:*)",
       "Bash(rg:*)",
       "Bash(python:*)",
-      "Bash(uvx ruff check:*)"
+      "Bash(uvx ruff check:*)",
+      "Bash(chmod:*)"
     ],
     "deny": []
   }

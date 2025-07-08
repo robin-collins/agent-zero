@@ -28,6 +28,134 @@ class ScreenshotTool(Tool):
     It integrates with the browser agent's screenshot system to provide consistent functionality.
     """
     
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.is_initialized = False
+        self.initialization_error = None
+        self.dependencies_checked = False
+        
+        # Initialize screenshot system
+        self._initialize_screenshot_system()
+    
+    def _initialize_screenshot_system(self) -> None:
+        """Initialize screenshot system with validation and dependency checks."""
+        try:
+            # Check if Playwright is available
+            self._check_playwright_availability()
+            
+            # Check screenshot directory structure
+            self._check_screenshot_directories()
+            
+            # Validate screenshot utilities
+            self._validate_screenshot_utilities()
+            
+            self.is_initialized = True
+            from python.helpers.print_style import PrintStyle
+            PrintStyle().success("Screenshot tool initialized successfully")
+            
+        except Exception as e:
+            self.initialization_error = str(e)
+            from python.helpers.print_style import PrintStyle
+            PrintStyle().error(f"Screenshot tool initialization failed: {str(e)}")
+            self.is_initialized = False
+    
+    def _check_playwright_availability(self) -> None:
+        """Check if Playwright is available and functional."""
+        try:
+            # Try to import Playwright
+            from playwright.async_api import Error as PlaywrightError
+            logger.info("Playwright is available")
+            
+            # Try to check if browsers are installed (non-blocking)
+            try:
+                import subprocess
+                result = subprocess.run(
+                    ['python', '-m', 'playwright', '--version'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                
+                if result.returncode == 0:
+                    logger.info(f"Playwright version: {result.stdout.strip()}")
+                else:
+                    logger.warning("Playwright command failed, but library is available")
+                    
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                logger.warning("Playwright browser check timed out or failed, but library is available")
+                
+        except ImportError:
+            raise Exception("Playwright not installed. Run: pip install playwright && python -m playwright install")
+        except Exception as e:
+            raise Exception(f"Playwright availability check failed: {str(e)}")
+    
+    def _check_screenshot_directories(self) -> None:
+        """Check and create screenshot directories if needed."""
+        try:
+            from python.helpers import files, persist_chat
+            
+            # Check if we can create screenshot directories
+            if hasattr(self, 'agent') and self.agent and hasattr(self.agent, 'context'):
+                base_path = files.get_abs_path(
+                    persist_chat.get_chat_folder_path(self.agent.context.id),
+                    "browser", "screenshots"
+                )
+                
+                # Ensure directory exists
+                if not files.make_dirs(base_path):
+                    raise Exception(f"Cannot create screenshot directory: {base_path}")
+                    
+                # Test write permissions
+                test_file = files.get_abs_path(base_path, "test_write.tmp")
+                try:
+                    with open(test_file, 'w') as f:
+                        f.write('test')
+                    files.remove(test_file)
+                    logger.info(f"Screenshot directory validated: {base_path}")
+                except Exception:
+                    raise Exception(f"No write permissions in screenshot directory: {base_path}")
+            else:
+                logger.warning("Agent context not available, skipping directory check")
+                    
+        except Exception as e:
+            raise Exception(f"Screenshot directory check failed: {str(e)}")
+    
+    def _validate_screenshot_utilities(self) -> None:
+        """Validate screenshot utility functions are available."""
+        try:
+            # Check if screenshot utilities are importable
+            from python.helpers.screenshots.utils.validation_utils import (
+                validate_screenshot_config,
+                sanitize_filename
+            )
+            from python.helpers.screenshots.utils.path_utils import (
+                generate_screenshot_path,
+                ensure_screenshot_directory
+            )
+            
+            # Test basic functionality
+            from python.helpers.screenshots import ScreenshotConfig
+            test_config = ScreenshotConfig()
+            
+            # Test validation
+            issues = validate_screenshot_config(test_config)
+            if issues:
+                logger.warning(f"Screenshot config validation issues: {issues}")
+            else:
+                logger.info("Screenshot config validation working")
+                
+            # Test filename sanitization
+            test_filename = sanitize_filename("test_file.png")
+            if not test_filename:
+                raise Exception("Filename sanitization failed")
+            
+            logger.info("Screenshot utilities validated successfully")
+                
+        except ImportError as e:
+            raise Exception(f"Screenshot utilities not available: {str(e)}")
+        except Exception as e:
+            raise Exception(f"Screenshot utilities validation failed: {str(e)}")
+    
     async def execute(self, **kwargs) -> Response:
         """
         Execute screenshot capture with comprehensive parameter handling
@@ -45,6 +173,12 @@ class ScreenshotTool(Tool):
             Response with screenshot information or error message
         """
         try:
+            # Check if screenshot system is initialized
+            if not self.is_initialized:
+                error_msg = f"Screenshot tool not initialized: {self.initialization_error or 'Unknown error'}"
+                logger.error(error_msg)
+                return Response(message=error_msg, break_loop=False)
+            
             # Get browser agent instance
             browser_agent = await self._get_browser_agent()
             if not browser_agent:

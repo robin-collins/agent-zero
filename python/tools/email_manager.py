@@ -98,8 +98,13 @@ class EmailManager(Tool):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.config = self._load_config()
+        self.config = None
         self.connection: Optional[EmailConnection] = None
+        self.is_initialized = False
+        self.initialization_error = None
+        
+        # Initialize email configuration and test connections
+        self._initialize_email_service()
 
     def _load_config(self) -> EmailConfig:
         """Load email configuration from environment variables."""
@@ -124,20 +129,82 @@ class EmailManager(Tool):
         except Exception as e:
             raise Exception(f"Failed to load email configuration: {str(e)}")
 
+    def _initialize_email_service(self) -> None:
+        """Initialize email service with validation and connection testing."""
+        try:
+            # Load configuration
+            self.config = self._load_config()
+            
+            # Validate configuration
+            self._validate_config()
+            
+            # Test connections
+            self._test_connections()
+            
+            self.is_initialized = True
+            PrintStyle().success("Email service initialized successfully")
+            
+        except Exception as e:
+            self.initialization_error = str(e)
+            PrintStyle().error(f"Email service initialization failed: {str(e)}")
+            self.is_initialized = False
+    
     def _validate_config(self) -> None:
-        """Validate email configuration."""
+        """Validate email configuration with detailed error messages."""
+        if not self.config:
+            raise Exception("Email configuration could not be loaded")
+            
         required_fields = [
-            ("IMAP Host", self.config.imap_host),
-            ("SMTP Host", self.config.smtp_host),
-            ("Username", self.config.username),
-            ("Password", self.config.password),
+            ("EMAIL_IMAP_HOST", self.config.imap_host),
+            ("EMAIL_SMTP_HOST", self.config.smtp_host),
+            ("EMAIL_USERNAME", self.config.username),
+            ("EMAIL_PASSWORD", self.config.password),
         ]
 
         missing = [name for name, value in required_fields if not value]
         if missing:
             raise Exception(
-                f"Missing required email configuration: {', '.join(missing)}"
+                f"Missing required email environment variables: {', '.join(missing)}. "
+                f"Please check your .env file and ensure all email configuration is set."
             )
+            
+        # Validate port numbers
+        if not (1 <= self.config.imap_port <= 65535):
+            raise Exception(f"Invalid IMAP port: {self.config.imap_port}. Must be between 1 and 65535")
+            
+        if not (1 <= self.config.smtp_port <= 65535):
+            raise Exception(f"Invalid SMTP port: {self.config.smtp_port}. Must be between 1 and 65535")
+    
+    def _test_connections(self) -> None:
+        """Test both IMAP and SMTP connections during initialization."""
+        test_connection = EmailConnection(self.config)
+        
+        try:
+            # Test IMAP connection
+            PrintStyle().info("Testing IMAP connection...")
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            try:
+                imap_conn = loop.run_until_complete(test_connection.connect_imap())
+                imap_conn.logout()
+                PrintStyle().success("IMAP connection test successful")
+            except Exception as e:
+                raise Exception(f"IMAP connection test failed: {str(e)}")
+            
+            # Test SMTP connection
+            PrintStyle().info("Testing SMTP connection...")
+            try:
+                smtp_conn = loop.run_until_complete(test_connection.connect_smtp())
+                smtp_conn.quit()
+                PrintStyle().success("SMTP connection test successful")
+            except Exception as e:
+                raise Exception(f"SMTP connection test failed: {str(e)}")
+                
+        finally:
+            test_connection.cleanup()
+            loop.close()
 
     async def execute(self, **kwargs) -> Response:
         """
@@ -153,7 +220,12 @@ class EmailManager(Tool):
         - move_email: Move email to folder
         """
         try:
-            self._validate_config()
+            # Check if email service is initialized
+            if not self.is_initialized:
+                error_msg = f"Email service not initialized: {self.initialization_error or 'Unknown error'}"
+                PrintStyle().error(error_msg)
+                return Response(message=error_msg, break_loop=False)
+            
             self.connection = EmailConnection(self.config)
 
             if self.method == "check_inbox":
