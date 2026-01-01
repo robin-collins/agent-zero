@@ -1,7 +1,8 @@
 from abc import abstractmethod
 from dataclasses import dataclass
+from typing import Any
 
-from agent import Agent
+from agent import Agent, LoopData
 from python.helpers.print_style import PrintStyle
 from python.helpers.strings import sanitize_string
 
@@ -10,19 +11,30 @@ from python.helpers.strings import sanitize_string
 class Response:
     message:str
     break_loop: bool
+    additional: dict[str, Any] | None = None
 
 class Tool:
 
-    def __init__(self, agent: Agent, name: str, method: str | None, args: dict[str,str], message: str, **kwargs) -> None:
+    def __init__(self, agent: Agent, name: str, method: str | None, args: dict[str,str], message: str, loop_data: LoopData | None, **kwargs) -> None:
         self.agent = agent
         self.name = name
         self.method = method
         self.args = args
+        self.loop_data = loop_data
         self.message = message
+        self.progress: str = ""
 
     @abstractmethod
     async def execute(self,**kwargs) -> Response:
         pass
+
+    def set_progress(self, content: str | None):
+        self.progress = content or ""
+
+    def add_progress(self, content: str | None):
+        if not content:
+            return
+        self.progress += content
 
     async def before_execution(self, **kwargs):
         PrintStyle(font_color="#1B4F72", padding=True, background_color="white", bold=True).print(f"{self.agent.agent_name}: Using tool '{self.name}'")
@@ -35,7 +47,7 @@ class Tool:
 
     async def after_execution(self, response: Response, **kwargs):
         text = sanitize_string(response.message.strip())
-        self.agent.hist_add_tool_result(self.name, text)
+        self.agent.hist_add_tool_result(self.name, text, **(response.additional or {}))
         PrintStyle(font_color="#1B4F72", background_color="white", padding=True, bold=True).print(f"{self.agent.agent_name}: Response from tool '{self.name}'")
         PrintStyle(font_color="#85C1E9").print(text)
         self.log.update(content=text)

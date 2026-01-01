@@ -10,6 +10,7 @@ from python.helpers.task_scheduler import (
 )
 from agent import AgentContext
 from python.helpers import persist_chat
+from python.helpers.projects import get_context_project_name, load_basic_project_data
 
 DEFAULT_WAIT_TIMEOUT = 300
 
@@ -38,6 +39,20 @@ class SchedulerTool(Tool):
         else:
             return Response(message=f"Unknown method '{self.name}:{self.method}'", break_loop=False)
 
+    def _resolve_project_metadata(self) -> tuple[str | None, str | None]:
+        context = self.agent.context
+        if not context:
+            return (None, None)
+        project_slug = get_context_project_name(context)
+        if not project_slug:
+            return (None, None)
+        try:
+            metadata = load_basic_project_data(project_slug)
+            color = metadata.get("color") or None
+        except Exception:
+            color = None
+        return project_slug, color
+
     async def list_tasks(self, **kwargs) -> Response:
         state_filter: list[str] | None = kwargs.get("state", None)
         type_filter: list[str] | None = kwargs.get("type", None)
@@ -60,7 +75,7 @@ class SchedulerTool(Tool):
         return Response(message=json.dumps(filtered_tasks, indent=4), break_loop=False)
 
     async def find_task_by_name(self, **kwargs) -> Response:
-        name: str = kwargs.get("name", None)
+        name: str = kwargs.get("name", "")
         if not name:
             return Response(message="Task name is required", break_loop=False)
         tasks: list[ScheduledTask | AdHocTask | PlannedTask] = TaskScheduler.get().find_task_by_name(name)
@@ -69,7 +84,7 @@ class SchedulerTool(Tool):
         return Response(message=json.dumps([serialize_task(task) for task in tasks], indent=4), break_loop=False)
 
     async def show_task(self, **kwargs) -> Response:
-        task_uuid: str = kwargs.get("uuid", None)
+        task_uuid: str = kwargs.get("uuid", "")
         if not task_uuid:
             return Response(message="Task UUID is required", break_loop=False)
         task: ScheduledTask | AdHocTask | PlannedTask | None = TaskScheduler.get().get_task_by_uuid(task_uuid)
@@ -78,7 +93,7 @@ class SchedulerTool(Tool):
         return Response(message=json.dumps(serialize_task(task), indent=4), break_loop=False)
 
     async def run_task(self, **kwargs) -> Response:
-        task_uuid: str = kwargs.get("uuid", None)
+        task_uuid: str = kwargs.get("uuid", "")
         if not task_uuid:
             return Response(message="Task UUID is required", break_loop=False)
         task_context: str | None = kwargs.get("context", None)
@@ -93,7 +108,7 @@ class SchedulerTool(Tool):
         return Response(message=f"Task started: {task_uuid}", break_loop=break_loop)
 
     async def delete_task(self, **kwargs) -> Response:
-        task_uuid: str = kwargs.get("uuid", None)
+        task_uuid: str = kwargs.get("uuid", "")
         if not task_uuid:
             return Response(message="Task UUID is required", break_loop=False)
 
@@ -133,9 +148,9 @@ class SchedulerTool(Tool):
         #       "month": "*",
         #       "weekday": "*",
         #   }
-        name: str = kwargs.get("name", None)
-        system_prompt: str = kwargs.get("system_prompt", None)
-        prompt: str = kwargs.get("prompt", None)
+        name: str = kwargs.get("name", "")
+        system_prompt: str = kwargs.get("system_prompt", "")
+        prompt: str = kwargs.get("prompt", "")
         attachments: list[str] = kwargs.get("attachments", [])
         schedule: dict[str, str] = kwargs.get("schedule", {})
         dedicated_context: bool = kwargs.get("dedicated_context", False)
@@ -153,24 +168,30 @@ class SchedulerTool(Tool):
         if not re.match(cron_regex, task_schedule.to_crontab()):
             return Response(message="Invalid cron expression: " + task_schedule.to_crontab(), break_loop=False)
 
+        project_slug, project_color = self._resolve_project_metadata()
+
         task = ScheduledTask.create(
             name=name,
             system_prompt=system_prompt,
             prompt=prompt,
             attachments=attachments,
             schedule=task_schedule,
-            context_id=None if dedicated_context else self.agent.context.id
+            context_id=None if dedicated_context else self.agent.context.id,
+            project_name=project_slug,
+            project_color=project_color,
         )
         await TaskScheduler.get().add_task(task)
         return Response(message=f"Scheduled task '{name}' created: {task.uuid}", break_loop=False)
 
     async def create_adhoc_task(self, **kwargs) -> Response:
-        name: str = kwargs.get("name", None)
-        system_prompt: str = kwargs.get("system_prompt", None)
-        prompt: str = kwargs.get("prompt", None)
+        name: str = kwargs.get("name", "")
+        system_prompt: str = kwargs.get("system_prompt", "")
+        prompt: str = kwargs.get("prompt", "")
         attachments: list[str] = kwargs.get("attachments", [])
         token: str = str(random.randint(1000000000000000000, 9999999999999999999))
         dedicated_context: bool = kwargs.get("dedicated_context", False)
+
+        project_slug, project_color = self._resolve_project_metadata()
 
         task = AdHocTask.create(
             name=name,
@@ -178,15 +199,17 @@ class SchedulerTool(Tool):
             prompt=prompt,
             attachments=attachments,
             token=token,
-            context_id=None if dedicated_context else self.agent.context.id
+            context_id=None if dedicated_context else self.agent.context.id,
+            project_name=project_slug,
+            project_color=project_color,
         )
         await TaskScheduler.get().add_task(task)
         return Response(message=f"Adhoc task '{name}' created: {task.uuid}", break_loop=False)
 
     async def create_planned_task(self, **kwargs) -> Response:
-        name: str = kwargs.get("name", None)
-        system_prompt: str = kwargs.get("system_prompt", None)
-        prompt: str = kwargs.get("prompt", None)
+        name: str = kwargs.get("name", "")
+        system_prompt: str = kwargs.get("system_prompt", "")
+        prompt: str = kwargs.get("prompt", "")
         attachments: list[str] = kwargs.get("attachments", [])
         plan: list[str] = kwargs.get("plan", [])
         dedicated_context: bool = kwargs.get("dedicated_context", False)
@@ -206,6 +229,8 @@ class SchedulerTool(Tool):
             done=[]
         )
 
+        project_slug, project_color = self._resolve_project_metadata()
+
         # Create planned task with task plan
         task = PlannedTask.create(
             name=name,
@@ -213,13 +238,15 @@ class SchedulerTool(Tool):
             prompt=prompt,
             attachments=attachments,
             plan=task_plan,
-            context_id=None if dedicated_context else self.agent.context.id
+            context_id=None if dedicated_context else self.agent.context.id,
+            project_name=project_slug,
+            project_color=project_color
         )
         await TaskScheduler.get().add_task(task)
         return Response(message=f"Planned task '{name}' created: {task.uuid}", break_loop=False)
 
     async def wait_for_task(self, **kwargs) -> Response:
-        task_uuid: str = kwargs.get("uuid", None)
+        task_uuid: str = kwargs.get("uuid", "")
         if not task_uuid:
             return Response(message="Task UUID is required", break_loop=False)
 
@@ -229,7 +256,7 @@ class SchedulerTool(Tool):
             return Response(message=f"Task not found: {task_uuid}", break_loop=False)
 
         if task.context_id == self.agent.context.id:
-            return Response(message="You can only wait for tasks running in a different chat context (dedicated_context=True).", break_loop=False)
+            return Response(message="You can only wait for tasks running in their own dedicated context.", break_loop=False)
 
         done = False
         elapsed = 0

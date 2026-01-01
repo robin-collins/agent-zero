@@ -52,6 +52,10 @@ export async function fetchApi(url, request) {
       // retry the request with new token
       csrfToken = null;
       return await _wrap(false);
+    } else if (response.redirected && response.url.endsWith("/login")) {
+      // redirect to login
+      window.location.href = response.url;
+      return;
     }
 
     // return the response
@@ -77,8 +81,19 @@ async function getCsrfToken() {
   if (csrfToken) return csrfToken;
   const response = await fetch("/csrf_token", {
     credentials: "same-origin",
-  }).then((r) => r.json());
-  csrfToken = response.token;
-  document.cookie = `csrf_token_${response.runtime_id}=${csrfToken}; SameSite=Strict; Path=/`;
-  return csrfToken;
+  });
+  if (response.redirected && response.url.endsWith("/login")) {
+    // redirect to login
+    window.location.href = response.url;
+    return;
+  }
+  const json = await response.json();
+  if (json.ok) {
+    csrfToken = json.token;
+    document.cookie = `csrf_token_${json.runtime_id}=${csrfToken}; SameSite=Strict; Path=/`;
+    return csrfToken;
+  } else {
+    if (json.error) alert(json.error);
+    throw new Error(json.error || "Failed to get CSRF token");
+  }
 }
